@@ -36,7 +36,7 @@ This module usage db "mysql", just for demo purpose. This app has two APIs to in
 #### What about the data extraction part?
 This app will create a dataset using the "MarvelExtraction.py" file. All the general information of the marvel movies will be stored inside a CSV file! 
 
-## Module 2: Docker + Flask + Celery + Redis
+## Module #2: Docker + Flask + Celery + Redis
 
 - An example of how to use multi-container docker!
 - How to use celery and redis in an app?
@@ -44,3 +44,15 @@ This app will create a dataset using the "MarvelExtraction.py" file. All the gen
 - To find the dataset:
     - `docker exec -it <worker-container-id> /bin/sh`
     - You will find `marvel.csv`
+
+## Module #3: Sentiment Analysis (It will be updated!)
+
+The main purpose of this module is to make a docker image using Dockerfile. 
+
+- How did I create an image?    
+    - First, we need a base image: `FROM ubuntu:18.04`
+    - Then, since this app is based on python, then we need to install python3 and It is standard to install all the followings: `RUN apt-get update | RUN apt-get upgrade -y | RUN apt-get install -y python3 | RUN apt-get install -y python3-pip`
+    - Now we have everything we need to run a python script using this image. 
+    - In addition to the app, we need to install every dependencies for the app using `RUN pip3 install -r requirements.txt` and exposed the port to `5000`.
+    - Lastly, we set the startup command to run the app, which is `CMD [ "python3", "/usr/src/app/app.py" ]`
+- Using docker compose? => `docker-compose -f docker-compose.yml up --build`
