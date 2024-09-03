@@ -1,8 +1,8 @@
 from bs4 import BeautifulSoup
 import requests
 import json
-import re
 import csv
+
 
 def extract():
     id = ['0371746', '0800080', '1228705', '0800369', '0458339']
@@ -11,12 +11,12 @@ def extract():
     with open('marvel.csv', mode='w') as csv_file:
         writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
         writer.writerow(['movie_name', 'movie_year', 'movie_rating_type', 'movie_description', 'movie_keywords',
-                        'movie_genre', 'movie_actors', 'movie_rating_user', 'movie_rating', 'direction', 'writers',
-                        'storyline'])
+                         'movie_genre', 'movie_actors', 'movie_rating_user', 'movie_rating', 'direction', 'writers',
+                         'storyline'])
 
         track = 0
         while track < len(id):
-            page_link = "http://www.imdb.com/title/tt"+str(id[track])
+            page_link = "http://www.imdb.com/title/tt" + str(id[track])
             page_response = requests.get(page_link, timeout=5)
             page_content = BeautifulSoup(page_response.content, "html.parser")
             data = json.loads(page_content.find('script', type='application/ld+json').text)
@@ -40,7 +40,7 @@ def extract():
                 i = i + 1
 
             direction = []
-            if type(data['director']) == list:
+            if isinstance(data['director']) == list:
                 dict = len(data['director'])
                 i = 0
                 while i < dict:
@@ -51,7 +51,7 @@ def extract():
                 direction.append(data['director']['name'])
 
             writers = []
-            if type(data['creator']) == list:
+            if isinstance(data['creator']) == list:
                 dict = len(data['creator'])
                 i = 0
                 while i < dict:
