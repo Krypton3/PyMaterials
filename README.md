@@ -1,16 +1,16 @@
-## jPy is a public repo to present different learning materials using python
+## PyMaterials is a public repo to present different learning materials using python
 
 ### Module #1: Data Extraction
 
-This module is based on Docker, Python, Flask, BeautifulSoup and requests. The primary learning curve is to present docker. This module will present the following two questions:
+This module is based on Docker, Python, Flask, BeautifulSoup and Requests. The primary learning curve is to present docker. This module will present the following two questions:
 
 - How to use docker in development level?
 - How to use docker image, container, compose?
 
 #### How to deploy the app locally?
 
-- Clone the repo: `git clone git@github.com:Krypton3/jPy.git` | `https://github.com/Krypton3/jPy.git`
-- Move into the module: `cd DataExtraction/`
+- Clone the repository
+- Execute: `cd DataExtraction/`
 - Build and Run the container Image: `docker-compose -f docker-compose.dev.yml up --build`
 
 #### Docker Compose Consists of the Following Commands:
@@ -26,7 +26,7 @@ We generally use docker compose to avoid all these commands.
 
 #### How to see the container details?
 - `docker exec -it <container_name> /bin/bash`
-- ls : You will be able to see the "marvel.csv" dataset which is created while deploying this app.
+- `ls` : You will be able to see the "marvel.csv" dataset which is created while deploying this app.
 
 This module usage db "mysql", just for demo purpose. This app has two APIs to invoke the DB and Retrieve from it.
 - How to use the database in docker? : https://docs.docker.com/language/python/develop/
