@@ -1,6 +1,5 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, jsonify
 from MarvelExtraction import extract
-import json
 import mysql.connector
 import csv
 
@@ -15,75 +14,77 @@ def main():
 
 @app.route('/info')
 def get_movies():
-    mydb = mysql.connector.connect(
-        host="mysqldb",
-        user="root",
-        password="p@ssw0rd1",
-        database="imdb"
-    )
-    cursor = mydb.cursor()
+    try:
+        mydb = mysql.connector.connect(
+            host="mysqldb",
+            user="root",
+            password="p@ssw0rd1",
+            database="imdb"
+        )
+        cursor = mydb.cursor()
 
-    cursor.execute("SELECT * FROM info")
+        cursor.execute("SELECT * FROM info")
+        row_headers = [x[0] for x in cursor.description]
 
-    row_headers = [x[0] for x in cursor.description]  # this will extract row headers
+        results = cursor.fetchall()
+        json_data = [dict(zip(row_headers, result)) for result in results]
 
-    results = cursor.fetchall()
-    json_data = []
-    for result in results:
-        json_data.append(dict(zip(row_headers, result)))
+    except mysql.connector.Error as err:
+        return jsonify({"error": str(err)})
 
-    cursor.close()
+    finally:
+        cursor.close()
+        mydb.close()
 
-    return json.dumps(json_data[1:])
+    return jsonify(json_data)
 
 
 @app.route('/initdb')
 def db_init():
-    # connect to mysql
-    mydb = mysql.connector.connect(
-        host="mysqldb",
-        user="root",
-        password="p@ssw0rd1"
-    )
-    cursor = mydb.cursor()
-    # creating the IMDB database
-    cursor.execute("DROP DATABASE IF EXISTS imdb")
-    cursor.execute("CREATE DATABASE imdb")
-    cursor.close()
+    try:
+        # connect to mysql and create the database
+        mydb = mysql.connector.connect(
+            host="mysqldb",
+            user="root",
+            password="p@ssw0rd1"
+        )
+        cursor = mydb.cursor()
+        cursor.execute("DROP DATABASE IF EXISTS imdb")
+        cursor.execute("CREATE DATABASE imdb")
 
-    # connect to the database
-    mydb = mysql.connector.connect(
-        host="mysqldb",
-        user="root",
-        password="p@ssw0rd1",
-        database="imdb"
-    )
-    cursor = mydb.cursor()
-    # creating the table
-    cursor.execute("DROP TABLE IF EXISTS info")
-    cursor.execute("CREATE TABLE info (movie_name VARCHAR(255), movie_year VARCHAR(255), movie_rating_type VARCHAR(255), movie_description VARCHAR(255))")
-    cursor.close()
+        # connect to the new database and create the table
+        mydb.database = "imdb"
+        cursor.execute("DROP TABLE IF EXISTS info")
+        cursor.execute("""
+            CREATE TABLE info (
+                movie_name VARCHAR(255),
+                movie_year VARCHAR(255),
+                movie_rating_type VARCHAR(255),
+                movie_description TEXT
+            )
+        """)
 
-    # Inserting to table
-    mydb = mysql.connector.connect(
-        host="mysqldb",
-        user="root",
-        password="p@ssw0rd1",
-        database="imdb"
-    )
-    cursor = mydb.cursor()
+        # Insert data from CSV
+        with open('marvel.csv') as file:
+            csvreader = csv.reader(file)
+            # Skip header row if there is one
+            next(csvreader)
+            for row in csvreader:
+                sql = """
+                    INSERT INTO info (movie_name, movie_year, movie_rating_type, movie_description)
+                    VALUES (%s, %s, %s, %s)
+                """
+                cursor.execute(sql, tuple(row))
 
-    file = open('marvel.csv')
-    csvreader = csv.reader(file)
-    for row in csvreader:
-        movie_name = row[0]
-        movie_year = row[1]
-        movie_rating_type = row[2]
-        movie_description = row[3]
-        sql = "INSERT INTO info (movie_name, movie_year, movie_rating_type, movie_description) VALUES (%s, %s, %s, %s)"
-        val = (movie_name, movie_year, movie_rating_type, movie_description)
-        cursor.execute(sql, val)
-    mydb.commit()
-    cursor.close()
+        mydb.commit()
+    except mysql.connector.Error as err:
+        return f"Error: {str(err)}"
+    finally:
+        cursor.close()
+        mydb.close()
 
-    return 'init database'
+    return 'Database initialized'
+
+
+if __name__ == '__main__':
+    app.run(debug=True)
