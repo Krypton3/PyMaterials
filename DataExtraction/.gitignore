@@ -1,5 +1,5 @@
 # Ignore the virtual environment directory
-data_extraction_venv/
+data_extraction_venv
 venv/
 .env/
 .venv/
@@ -53,3 +53,4 @@ dmypy.json
 
 # VS Code
 .vscode/
+../.DS_Store

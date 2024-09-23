@@ -14,6 +14,7 @@ def main():
 
 @app.route('/info')
 def get_movies():
+    cursor = None
     try:
         mydb = mysql.connector.connect(
             host="mysqldb",
@@ -33,14 +34,18 @@ def get_movies():
         return jsonify({"error": str(err)})
 
     finally:
-        cursor.close()
-        mydb.close()
+        if cursor:
+            cursor.close()
+        if mydb:
+            mydb.close()
 
     return jsonify(json_data)
 
 
 @app.route('/initdb')
 def db_init():
+    cursor = None
+    mydb = None
     try:
         # connect to mysql and create the database
         mydb = mysql.connector.connect(
@@ -80,8 +85,10 @@ def db_init():
     except mysql.connector.Error as err:
         return f"Error: {str(err)}"
     finally:
-        cursor.close()
-        mydb.close()
+        if cursor:
+            cursor.close()
+        if mydb:
+            mydb.close()
 
     return 'Database initialized'
 
