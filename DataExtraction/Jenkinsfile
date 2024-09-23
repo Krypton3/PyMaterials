@@ -2,6 +2,18 @@ pipeline {
     agent any
 
     stages {
+        stage('Clone Repository') {
+            steps {
+                git url: 'https://github.com/Krypton3/PyMaterials.git', branch: 'main'
+            }
+        }
+        stage('Copy Folder') {
+            steps {
+                sh '''
+                    sh 'mkdir -p $WORKSPACE/app && cp -r DataExtraction/* $WORKSPACE/app'
+                '''
+            }
+        }
         stage('Build') {
             agent {
                 docker {
