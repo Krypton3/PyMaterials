@@ -2,9 +2,20 @@ pipeline {
     agent any
 
     stages {
-        stage('Hello') {
+        stage('Build') {
+            agent {
+                docker {
+                    image 'python:3.12.1-slim'
+                    reuseNode true
+                }
+            }
             steps {
-                echo 'Hello World'
+                sh '''
+                    ls -la
+                    python --version
+                    pip3 install --no-cache-dir -r requirements.txt
+                    flask --version
+                '''
             }
         }
     }
