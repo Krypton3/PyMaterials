@@ -1,21 +1,28 @@
-# base image
-FROM python:3.12-slim
+# Use a specific Python version for stability
+FROM python:3.12.1-slim
 
-# Set environment variables to avoid Python buffering and set Flask to development mode (optional)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    default-libmysqlclient-dev build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set environment variables to avoid Python buffering and set Flask to development mode
 ENV PYTHONUNBUFFERED=1
 ENV FLASK_ENV=development
 
-# working directory
+# Set the working directory
 WORKDIR /app
 
-# copying the dependencies for this app
+# Copy the requirements.txt into the image
 COPY requirements.txt .
 
-# Installing everything from requirements.txt file
+# Install dependencies from requirements.txt
 RUN pip3 install --no-cache-dir -r requirements.txt
 
-# Now we will copy everything else into the image
+# Copy the rest of the application code into the image
 COPY . .
 
-# defaul command when running the container
-CMD [ "python3", "-m" , "flask", "run", "--host=0.0.0.0" ]
+# Expose port 8000 to allow communication to/from the container
+EXPOSE 8000
+
+# Default command to run the Flask app
+CMD ["flask", "run", "--host=0.0.0.0", "--port=8000"]

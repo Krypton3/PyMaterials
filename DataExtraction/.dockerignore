@@ -1,6 +1,27 @@
+# Ignore Python cache files
+__pycache__/
 *.pyc
 *.pyo
-__pycache__
+
+# Ignore log files
+*.log
+
+# Ignore virtual environment directories
+venv/
+.env/
+
+# Ignore build artifacts
+build/
+dist/
+*.egg-info/
+
+# Ignore local development configuration files
+*.env
+docker-compose.yml
+
+# Ignore Git files
 .git
-*.md
+.gitignore
+ml_app
+__pycache__
 data_extraction_venv
