@@ -46,6 +46,14 @@ pipeline {
                 '''
                 
                 dir('app') {
+                    // Create a virtualenv in the app directory and activate it
+                    sh '''
+                        if [ ! -d "venv" ]; then
+                            python -m venv venv
+                        fi
+                        . venv/bin/activate
+                    '''
+
                     // Check if requirements.txt exists
                     sh '''
                         if [ -f "requirements.txt" ]; then
@@ -56,11 +64,11 @@ pipeline {
                         fi
                     '''
 
-                    // List contents, install dependencies using --user, and check Flask version
+                    // List contents, install dependencies inside the virtualenv, and check Flask version
                     sh '''
                         ls -la
-                        python --version
-                        pip install --no-cache-dir -r requirements.txt --user
+                        . venv/bin/activate
+                        pip install --no-cache-dir -r requirements.txt
                         flask --version
                     '''
                 }
