@@ -7,7 +7,7 @@ pipeline {
                 // Checkout the repository from SCM
                 checkout scm
 
-                // Set workspace permissions (optional, depends on your workspace setup)
+                // Set workspace permissions
                 sh '''
                     echo "Setting permissions for workspace"
                     chmod -R 777 "$WORKSPACE"
@@ -70,6 +70,30 @@ pipeline {
                         . venv/bin/activate
                         pip install --no-cache-dir -r requirements.txt
                         flask --version
+                    '''
+                }
+            }
+        }
+        stage('Test') {
+            agent {
+                docker {
+                    image 'python:3.12.1-slim'
+                    reuseNode true
+                }
+            }
+            steps {
+                sh '''
+                    echo "Testing the app"
+                '''
+
+                dir('app') {
+                    sh '''
+                        if [ -f "app.py" ]; then
+                            echo "main file found"
+                        else
+                            echo "main file not found!"
+                            exit 1
+                        fi
                     '''
                 }
             }
