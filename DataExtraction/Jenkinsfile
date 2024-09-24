@@ -88,12 +88,15 @@ pipeline {
 
                 dir('app') {
                     sh '''
-                        if [ -f "app.py" ]; then
-                            echo "main file found"
+                        if [ -f "tests/test_extract.py" ]; then
+                            echo "test file found"
                         else
-                            echo "main file not found!"
+                            echo "test file not found!"
                             exit 1
                         fi
+
+                        . venv/bin/activate
+                        PYTHONPATH=. python -m unittest tests/test_extract.py
                     '''
                 }
             }

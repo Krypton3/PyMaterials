@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 
 
 def extract():
-    id = ['0371746', '0800080', '1228705', '0800369', '0458339']
+    id = ['0371746', '0800080']
 
     # Headers: A dictionary of headers like content-type, date, server, etc.
     headers = {
