@@ -8,12 +8,15 @@ Flask==2.0.2
 idna==3.3
 itsdangerous==2.0.1
 Jinja2==3.0.2
+lxml==5.3.0
 MarkupSafe==2.0.1
 mccabe==0.7.0
-protobuf==5.28.2
+mysql-connector-python==8.0.27
+protobuf==3.19.1
 pycodestyle==2.12.1
 pyflakes==3.2.0
 requests==2.26.0
 soupsieve==2.3
+unittest-xml-reporting==3.2.0
 urllib3==1.26.7
 Werkzeug==2.0.2

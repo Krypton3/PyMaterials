@@ -4,16 +4,11 @@ pipeline {
     stages {
         stage('Clone Repository') {
             steps {
-                // Checkout the repository from SCM
                 checkout scm
-
-                // Set workspace permissions
                 sh '''
                     echo "Setting permissions for workspace"
                     chmod -R 777 "$WORKSPACE"
                 '''
-
-                // If DataExtraction folder exists, copy its content to app directory
                 sh '''
                     if [ -d "DataExtraction" ]; then
                         echo "DataExtraction folder exists. Copying content..."
@@ -35,7 +30,6 @@ pipeline {
                 }
             }
             steps {
-                // Check if app directory exists and proceed
                 sh '''
                     if [ -d "$WORKSPACE/app" ]; then
                         echo "Entering app directory to run build..."
@@ -44,17 +38,13 @@ pipeline {
                         exit 1
                     fi
                 '''
-                
                 dir('app') {
-                    // Create a virtualenv in the app directory and activate it
                     sh '''
                         if [ ! -d "venv" ]; then
                             python -m venv venv
                         fi
                         . venv/bin/activate
                     '''
-
-                    // Check if requirements.txt exists
                     sh '''
                         if [ -f "requirements.txt" ]; then
                             echo "requirements.txt found"
@@ -63,8 +53,6 @@ pipeline {
                             exit 1
                         fi
                     '''
-
-                    // List contents, install dependencies inside the virtualenv, and check Flask version
                     sh '''
                         ls -la
                         . venv/bin/activate
@@ -74,6 +62,7 @@ pipeline {
                 }
             }
         }
+
         stage('Test') {
             agent {
                 docker {
@@ -85,7 +74,6 @@ pipeline {
                 sh '''
                     echo "Testing the app"
                 '''
-
                 dir('app') {
                     sh '''
                         if [ -f "tests/test_extract.py" ]; then
@@ -96,10 +84,18 @@ pipeline {
                         fi
 
                         . venv/bin/activate
-                        PYTHONPATH=. python -m unittest tests/test_extract.py
+                        mkdir -p test-reports
+                        PYTHONPATH=. python tests/test_extract.py
                     '''
                 }
             }
+        }
+    }
+
+    post {
+        always {
+            // Publish JUnit test results
+            junit 'app/test-reports/*.xml'
         }
     }
 }

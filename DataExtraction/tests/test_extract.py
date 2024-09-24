@@ -2,7 +2,8 @@ import unittest
 from unittest.mock import patch, mock_open, MagicMock
 import csv
 import io
-from MarvelExtraction import extract  # Ensure this import matches the file structure
+import xmlrunner
+from MarvelExtraction import extract
 
 
 class TestExtractFunction(unittest.TestCase):
@@ -140,4 +141,5 @@ class TestExtractFunction(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    with open('test-reports/results.xml', 'wb') as output:
+        unittest.main(testRunner=xmlrunner.XMLTestRunner(output=output), verbosity=2)
