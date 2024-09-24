@@ -4,16 +4,29 @@ pipeline {
     stages {
         stage('Clone Repository') {
             steps {
-                git url: 'https://github.com/Krypton3/PyMaterials.git', branch: 'main'
-            }
-        }
-        stage('Copy Folder') {
-            steps {
+                // Checkout the repository from SCM
+                checkout scm
+
+                // Set workspace permissions for root
                 sh '''
-                    sh 'mkdir -p $WORKSPACE/app && cp -r DataExtraction/* $WORKSPACE/app'
+                    echo "Setting permissions for workspace"
+                    chmod -R 777 "$WORKSPACE"
+                '''
+
+                // If DataExtraction folder exists, copy its content to app directory
+                sh '''
+                    if [ -d "DataExtraction" ]; then
+                        echo "DataExtraction folder exists. Copying content..."
+                        mkdir -p "$WORKSPACE/app"
+                        cp -r DataExtraction/* "$WORKSPACE/app"
+                    else
+                        echo "DataExtraction folder doesn't exist!"
+                        exit 1
+                    fi
                 '''
             }
         }
+
         stage('Build') {
             agent {
                 docker {
@@ -22,12 +35,35 @@ pipeline {
                 }
             }
             steps {
+                // Check if app directory exists and proceed
                 sh '''
-                    ls -la
-                    python --version
-                    pip3 install --no-cache-dir -r requirements.txt
-                    flask --version
+                    pip install --upgrade pip
+                    if [ -d "$WORKSPACE/app" ]; then
+                        echo "Entering app directory to run build..."
+                    else
+                        echo "app directory not found!"
+                        exit 1
+                    fi
                 '''
+                dir('app') {
+                    // Check if requirements.txt exists
+                    sh '''
+                        if [ -f "requirements.txt" ]; then
+                            echo "requirements.txt found"
+                        else
+                            echo "requirements.txt not found!"
+                            exit 1
+                        fi
+                    '''
+
+                    // List contents, update pip, and install dependencies
+                    sh '''
+                        ls -la
+                        python --version
+                        pip install --no-cache-dir -r requirements.txt
+                        flask --version
+                    '''
+                }
             }
         }
     }

@@ -10,8 +10,7 @@ itsdangerous==2.0.1
 Jinja2==3.0.2
 MarkupSafe==2.0.1
 mccabe==0.7.0
-mysql-connector-python==8.0.27
-protobuf==3.19.1
+protobuf==5.28.2
 pycodestyle==2.12.1
 pyflakes==3.2.0
 requests==2.26.0
