@@ -7,7 +7,7 @@ pipeline {
                 // Checkout the repository from SCM
                 checkout scm
 
-                // Set workspace permissions for root
+                // Set workspace permissions (optional, depends on your workspace setup)
                 sh '''
                     echo "Setting permissions for workspace"
                     chmod -R 777 "$WORKSPACE"
@@ -37,7 +37,6 @@ pipeline {
             steps {
                 // Check if app directory exists and proceed
                 sh '''
-                    pip install --upgrade pip
                     if [ -d "$WORKSPACE/app" ]; then
                         echo "Entering app directory to run build..."
                     else
@@ -45,6 +44,7 @@ pipeline {
                         exit 1
                     fi
                 '''
+                
                 dir('app') {
                     // Check if requirements.txt exists
                     sh '''
@@ -56,11 +56,11 @@ pipeline {
                         fi
                     '''
 
-                    // List contents, update pip, and install dependencies
+                    // List contents, install dependencies using --user, and check Flask version
                     sh '''
                         ls -la
                         python --version
-                        pip install --no-cache-dir -r requirements.txt
+                        pip install --no-cache-dir -r requirements.txt --user
                         flask --version
                     '''
                 }
