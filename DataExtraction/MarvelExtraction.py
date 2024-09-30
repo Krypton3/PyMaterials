@@ -4,7 +4,7 @@ import requests
 from bs4 import BeautifulSoup
 
 
-def extract():
+def extract(file_name):
     id = ['0371746', '0800080']
 
     # Headers: A dictionary of headers like content-type, date, server, etc.
@@ -12,7 +12,7 @@ def extract():
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36"
     }
 
-    with open('marvel.csv', mode='w') as csv_file:
+    with open(file_name, mode='w') as csv_file:
         writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
         writer.writerow(['movie_name', 'movie_year', 'movie_rating_type', 'movie_description', 'movie_keywords',
                          'movie_genre', 'movie_actors', 'movie_rating_user', 'movie_rating', 'direction', 'writers',

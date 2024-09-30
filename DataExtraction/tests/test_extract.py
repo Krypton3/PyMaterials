@@ -5,6 +5,8 @@ import io
 import xmlrunner
 from MarvelExtraction import extract
 
+FILE_NAME = 'marvel.csv'
+
 
 class TestExtractFunction(unittest.TestCase):
     @patch('MarvelExtraction.requests.get')
@@ -77,7 +79,7 @@ class TestExtractFunction(unittest.TestCase):
         mock_get.side_effect = mock_get_response
 
         # Run the extract function
-        extract()
+        extract(FILE_NAME)
 
         # Verify if the CSV file is written correctly
         mock_file.assert_called_once_with('marvel.csv', mode='w')
@@ -120,7 +122,7 @@ class TestExtractFunction(unittest.TestCase):
         mock_get.return_value = mock_response
 
         # Run the extract function
-        extract()
+        extract(FILE_NAME)
 
         # Ensure no CSV file is written due to 403 access denied
         mock_get.assert_called()
@@ -134,7 +136,7 @@ class TestExtractFunction(unittest.TestCase):
         mock_get.return_value = mock_response
 
         # Run the extract function
-        extract()
+        extract(FILE_NAME)
 
         # Ensure no data extraction happens due to missing script tag
         mock_get.assert_called()

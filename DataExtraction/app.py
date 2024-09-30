@@ -8,7 +8,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def main():
-    extract()
+    extract('marvel.csv')
     return render_template('index.html')
 
 
