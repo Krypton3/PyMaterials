@@ -169,11 +169,16 @@ pipeline {
                         pip install --no-cache-dir -r requirements.txt
                         flask --version
                     '''
-                    // install netlify cli globally
+                    // install netlify cli globally and deploy
                     sh '''
                         npm install netlify-cli
                         node_modules/.bin/netlify --version
+                        echo "Deploying to production. Site ID: $NETLIFY_SITE_ID"
                         node_modules/.bin/netlify status
+                        mkdir -p dist
+                        cp -r static/* dist/
+                        cp templates/index.html dist/
+                        node_modules/.bin/netlify deploy --prod --dir=dist
                     '''
                 }
             }
