@@ -63,33 +63,60 @@ pipeline {
             }
         }
 
-        stage('Test') {
-            agent {
-                docker {
-                    image 'python:3.12.1-slim'
-                    reuseNode true
-                }
-            }
-            steps {
-                sh '''
-                    echo "Testing the app"
-                '''
-                dir('app') {
-                    sh '''
-                        if [ -f "tests/test_extract.py" ]; then
-                            echo "test file found"
-                        else
-                            echo "test file not found!"
-                            exit 1
-                        fi
+        stage('Test'){
+            parallel {
+                stage('E2E Test') {
+                    agent {
+                        docker {
+                            image 'python:3.12.1-slim'
+                            reuseNode true
+                        }
+                    }
+                    steps {
+                        dir('app') {
+                            sh '''
+                                if [ -f "e2e_test/test_e2e_extract.py" ]; then
+                                    echo "e2e test file found"
+                                else
+                                    echo "e2e test file not found!"
+                                    exit 1
+                                fi
 
-                        . venv/bin/activate
-                        mkdir -p test-reports
-                        PYTHONPATH=. python tests/test_extract.py
-                    '''
+                                . venv/bin/activate
+                                mkdir -p e2e-test-reports
+                                PYTHONPATH=. python e2e_test/test_e2e_extract.py
+                            '''
+                        }
+                    }
+                }
+                stage('Unit Test') {
+                    agent {
+                        docker {
+                            image 'python:3.12.1-slim'
+                            reuseNode true
+                        }
+                    }
+                    steps {
+                        dir('app') {
+                            sh '''
+                                if [ -f "tests/test_extract.py" ]; then
+                                    echo "test file found"
+                                else
+                                    echo "test file not found!"
+                                    exit 1
+                                fi
+
+                                . venv/bin/activate
+                                mkdir -p test-reports
+                                PYTHONPATH=. python tests/test_extract.py
+                            '''
+                        }
+                    }
                 }
             }
         }
+
+        
     }
 
     post {
