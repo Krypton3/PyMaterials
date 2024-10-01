@@ -1,6 +1,11 @@
 pipeline {
     agent any
 
+    environment {
+        NETLIFY_SITE_ID = 'ca934c0a-d8db-4262-8c52-1e7cde25bde2'
+        NETLIFY_AUTH_TOKEN = credentials('netlify-token')
+    }
+
     stages {
         stage('Clone Repository') {
             steps {
@@ -168,6 +173,7 @@ pipeline {
                     sh '''
                         npm install netlify-cli
                         node_modules/.bin/netlify --version
+                        node_modules/.bin/netlify status
                     '''
                 }
             }
