@@ -34,32 +34,19 @@ pipeline {
                 }
             }
             steps {
-                sh '''
-                    if [ -d "$WORKSPACE/app" ]; then
-                        echo "Entering app directory to run build..."
-                    else
-                        echo "app directory not found!"
-                        exit 1
-                    fi
-                '''
                 dir('app') {
                     sh '''
                         if [ ! -d "venv" ]; then
                             python -m venv venv
                         fi
                         . venv/bin/activate
-                    '''
-                    sh '''
-                        if [ -f "requirements.txt" ]; then
-                            echo "requirements.txt found"
-                        else
+
+                        if [ ! -f "requirements.txt" ]; then
                             echo "requirements.txt not found!"
                             exit 1
                         fi
-                    '''
-                    sh '''
-                        ls -la
-                        . venv/bin/activate
+                        
+                        # Install requirements
                         pip install --no-cache-dir -r requirements.txt
                         flask --version
                     '''
@@ -67,7 +54,7 @@ pipeline {
             }
         }
 
-        stage('Test'){
+        stage('Test') {
             parallel {
                 stage('E2E Test') {
                     agent {
@@ -80,15 +67,13 @@ pipeline {
                         dir('app') {
                             sh '''
                                 if [ -f "e2e_test/test_e2e_extract.py" ]; then
-                                    echo "e2e test file found"
+                                    . venv/bin/activate
+                                    mkdir -p e2e-test-reports
+                                    PYTHONPATH=. python e2e_test/test_e2e_extract.py
                                 else
                                     echo "e2e test file not found!"
                                     exit 1
                                 fi
-
-                                . venv/bin/activate
-                                mkdir -p e2e-test-reports
-                                PYTHONPATH=. python e2e_test/test_e2e_extract.py
                             '''
                         }
                     }
@@ -104,15 +89,13 @@ pipeline {
                         dir('app') {
                             sh '''
                                 if [ -f "tests/test_extract.py" ]; then
-                                    echo "test file found"
+                                    . venv/bin/activate
+                                    mkdir -p test-reports
+                                    PYTHONPATH=. python tests/test_extract.py
                                 else
-                                    echo "test file not found!"
+                                    echo "unit test file not found!"
                                     exit 1
                                 fi
-
-                                . venv/bin/activate
-                                mkdir -p test-reports
-                                PYTHONPATH=. python tests/test_extract.py
                             '''
                         }
                     }
@@ -129,61 +112,30 @@ pipeline {
                 }
             }
             steps {
-                sh '''
-                    if [ -d "$WORKSPACE/app" ]; then
-                        echo "Entering app directory to run build..."
-                    else
-                        echo "app directory not found!"
-                        exit 1
-                    fi
-                '''
                 dir('app') {
-                    // check if there is any virutalenv
+                    // Check if 'build' directory already exists
                     sh '''
-                        if [ ! -d "venv" ]; then
-                            python -m venv venv
-                        fi
-                        . venv/bin/activate
-                    '''
-                    // check if the requirements file do exists
-                    sh '''
-                        if [ -f "requirements.txt" ]; then
-                            echo "requirements.txt found"
-                        else
-                            echo "requirements.txt not found!"
+                        if [ ! -d "build" ]; then
+                            echo "No build directory found! You need to run flask freeze or provide the build directory."
                             exit 1
                         fi
                     '''
-                    // install node.js and npm
+                    
+                    // Deploy the existing 'build' directory to Netlify
                     sh '''
+                        # Install Node.js and Netlify CLI
                         apt-get update
                         apt-get install -y curl
                         curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
                         apt-get install -y nodejs
-                        node -v
-                    '''
-                    // install requirements.txt file
-                    sh '''
-                        ls -la
-                        . venv/bin/activate
-                        pip install --no-cache-dir -r requirements.txt
-                        flask --version
-                    '''
-                    // install netlify cli globally and deploy
-                    sh '''
                         npm install netlify-cli
-                        node_modules/.bin/netlify --version
-                        echo "Deploying to production. Site ID: $NETLIFY_SITE_ID"
-                        node_modules/.bin/netlify status
-                        mkdir -p dist
-                        cp -r static/* dist/
-                        cp templates/index.html dist/
-                        node_modules/.bin/netlify deploy --prod --dir=dist
+
+                        echo "Deploying to Netlify using the existing 'build' folder..."
+                        netlify deploy --prod --dir=build --site=$NETLIFY_SITE_ID --auth=$NETLIFY_AUTH_TOKEN
                     '''
                 }
             }
         }
-        
     }
 
     post {
