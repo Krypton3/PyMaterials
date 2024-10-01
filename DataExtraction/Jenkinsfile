@@ -7,7 +7,6 @@ pipeline {
                 checkout scm
                 sh '''
                     echo "Setting permissions for workspace"
-                    chmod -R 777 "$WORKSPACE"
                 '''
                 sh '''
                     if [ -d "DataExtraction" ]; then
@@ -116,6 +115,63 @@ pipeline {
             }
         }
 
+        stage('Deploy') {
+            agent {
+                docker {
+                    image 'python:3.12.1-slim'
+                    args '-u root'
+                    reuseNode true
+                }
+            }
+            steps {
+                sh '''
+                    if [ -d "$WORKSPACE/app" ]; then
+                        echo "Entering app directory to run build..."
+                    else
+                        echo "app directory not found!"
+                        exit 1
+                    fi
+                '''
+                dir('app') {
+                    // check if there is any virutalenv
+                    sh '''
+                        if [ ! -d "venv" ]; then
+                            python -m venv venv
+                        fi
+                        . venv/bin/activate
+                    '''
+                    // check if the requirements file do exists
+                    sh '''
+                        if [ -f "requirements.txt" ]; then
+                            echo "requirements.txt found"
+                        else
+                            echo "requirements.txt not found!"
+                            exit 1
+                        fi
+                    '''
+                    // install node.js and npm
+                    sh '''
+                        apt-get update
+                        apt-get install -y curl
+                        curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+                        apt-get install -y nodejs
+                        node -v
+                    '''
+                    // install requirements.txt file
+                    sh '''
+                        ls -la
+                        . venv/bin/activate
+                        pip install --no-cache-dir -r requirements.txt
+                        flask --version
+                    '''
+                    // install netlify cli globally
+                    sh '''
+                        npm install netlify-cli
+                        node_modules/.bin/netlify --version
+                    '''
+                }
+            }
+        }
         
     }
 
