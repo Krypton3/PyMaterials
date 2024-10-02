@@ -108,8 +108,55 @@ pipeline {
                 }
             }
         }
+        stage('Deploy Stage') {
+            agent {
+                docker {
+                    image 'python:3.12.1-slim'
+                    args '-u root'
+                    reuseNode true
+                }
+            }
+            steps {
+                dir('app') {
+                    // Check if 'build' directory already exists
+                    sh '''
+                        if [ ! -d "build" ]; then
+                            echo "No build directory found! You need to run flask freeze or provide the build directory."
+                            exit 1
+                        fi
+                    '''
+                    
+                    // Deploy the existing 'build' directory to Netlify
+                    sh '''
+                        # Update packages and install dependencies without cache
+                        # Clean the cache and update package lists
+                        apt-get clean
+                        rm -rf /var/lib/apt/lists/*
+                        apt-get update --fix-missing
 
-        stage('Deploy') {
+                        # Install curl if it's not installed
+                        apt-get install -y --no-install-recommends curl
+
+                        # Install Node.js 18.x from NodeSource
+                        curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+                        apt-get install -y nodejs
+                        node -v
+                        npm -v
+                    '''
+                    sh '''
+                        npm install netlify-cli
+                        node_modules/.bin/netlify --version
+                        echo "Deploying to production. Site ID: $NETLIFY_SITE_ID"
+                        node_modules/.bin/netlify status
+
+                        echo "Deploying to Netlify using the existing 'build' folder..."
+                        node_modules/.bin/netlify deploy --dir=build --site=$NETLIFY_SITE_ID --auth=$NETLIFY_AUTH_TOKEN
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy Prod') {
             agent {
                 docker {
                     image 'python:3.12.1-slim'
