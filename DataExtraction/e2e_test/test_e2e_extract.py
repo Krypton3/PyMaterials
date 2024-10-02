@@ -1,6 +1,7 @@
 import unittest
 import csv
 import os
+import xmlrunner
 from MarvelExtraction import extract
 
 
@@ -45,4 +46,5 @@ class TestExtractE2E(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    with open('e2e-test-reports/results.xml', 'wb') as output:
+        unittest.main(testRunner=xmlrunner.XMLTestRunner(output=output), verbosity=2)

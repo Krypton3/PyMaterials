@@ -77,6 +77,12 @@ pipeline {
                             '''
                         }
                     }
+                    post {
+                        always {
+                            // Publish test results for prod e2e
+                            junit 'app/e2e-test-reports/*.xml'
+                        }
+                    }
                 }
                 stage('Unit Test') {
                     agent {
@@ -147,6 +153,39 @@ pipeline {
                         echo "Deploying to Netlify using the existing 'build' folder..."
                         node_modules/.bin/netlify deploy --prod --dir=build --site=$NETLIFY_SITE_ID --auth=$NETLIFY_AUTH_TOKEN
                     '''
+                }
+            }
+        }
+        stage('Production E2E Test') {
+            environment {
+                DEPLOYED_SITE_URL = 'https://py-materials.netlify.app'
+            }
+            agent {
+                docker {
+                    image 'python:3.12.1-slim'
+                    reuseNode true
+                }
+            }
+            steps {
+                dir('app') {
+                    sh '''
+                        echo "Running test on deployed site"
+                        . venv/bin/activate
+                        if [ -f "e2e_test/test_e2e_live.py" ]; then
+                            export SITE_URL=$DEPLOYED_SITE_URL
+                            mkdir -p e2e-live-reports
+                            PYTHONPATH=. python e2e_test/test_e2e_live.py
+                        else
+                            echo "e2e live test file not found!"
+                            exit 1
+                        fi
+                    '''
+                }
+            }
+            post {
+                always {
+                    // Publish test results for prod e2e
+                    junit 'app/e2e-live-reports/*.xml'
                 }
             }
         }
