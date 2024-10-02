@@ -153,6 +153,42 @@ pipeline {
                         node_modules/.bin/netlify deploy --dir=build --site=$NETLIFY_SITE_ID --auth=$NETLIFY_AUTH_TOKEN --json > deploy-output.json
                         node_modules/.bin/node-jq -r '.deploy_url' deploy-output.json
                     '''
+                    script {
+                        env.STAGING_URL = sh(script: "node_modules/.bin/node-jq -r '.deploy_url' deploy-output.json", returnStdout: true)
+                    }
+                }
+            }
+        }
+        stage('Staging E2E Test') {
+            environment {
+                DEPLOYED_SITE_URL = "${env.STAGING_URL}"
+            }
+            agent {
+                docker {
+                    image 'python:3.12.1-slim'
+                    reuseNode true
+                }
+            }
+            steps {
+                dir('app') {
+                    sh '''
+                        echo "Running test on staging site"
+                        . venv/bin/activate
+                        if [ -f "e2e_test/test_e2e_staging.py" ]; then
+                            export SITE_URL=$DEPLOYED_SITE_URL
+                            mkdir -p e2e-staging-reports
+                            PYTHONPATH=. python e2e_test/test_e2e_staging.py
+                        else
+                            echo "e2e staging test file not found!"
+                            exit 1
+                        fi
+                    '''
+                }
+            }
+            post {
+                always {
+                    // Publish test results for staging e2e
+                    junit 'app/e2e-staging-reports/*.xml'
                 }
             }
         }
