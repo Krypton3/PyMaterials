@@ -1,7 +1,7 @@
 import os
 import shutil
 import sys
-from flask import Flask, render_template
+from flask import Flask, render_template, jsonify
 
 app = Flask(__name__)
 
@@ -11,6 +11,15 @@ def main():
     # Fetch the application version from environment variable
     app_version = os.getenv('APP_VERSION', '1.0.0')  # Default to 1.0.0 if not set
     return render_template('index.html', app_version=app_version, cache=False)
+
+
+@app.route('/api/version', methods=['GET'])
+def get_version():
+    """API endpoint to return the current app version."""
+    # Fetch the application version from environment variable
+    app_version = os.getenv('APP_VERSION', '1.0.0')  # Default to 1.0.0 if not set
+    # Return the version as JSON
+    return jsonify(version=app_version)
 
 
 def clean_and_build_static_site():
