@@ -8,13 +8,6 @@ pipeline {
     }
 
     stages {
-        stage('Docker Build') {
-            steps {
-                sh '''
-                    docker build --no-cache -t my-container DataExtraction/Jenkins_Docker/.
-                '''
-            }
-        }
         stage('Application Build') {
             agent {
                 docker {
