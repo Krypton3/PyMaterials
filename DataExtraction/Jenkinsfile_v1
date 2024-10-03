@@ -8,17 +8,10 @@ pipeline {
     }
 
     stages {
-        stage('Docker Build') {
-            steps {
-                sh '''
-                    docker build --no-cache -t my-container DataExtraction/Jenkins_Docker/.
-                '''
-            }
-        }
-        stage('Application Build') {
+        stage('Build') {
             agent {
                 docker {
-                    image 'my-container'
+                    image 'python:3.12.1-slim'
                     args '-u root'
                     reuseNode true
                 }
@@ -60,13 +53,13 @@ pipeline {
                 }
             }
         }
+
         stage('Test') {
             parallel {
                 stage('E2E Test') {
                     agent {
                         docker {
-                            image 'my-container'
-                            args '-u root'
+                            image 'python:3.12.1-slim'
                             reuseNode true
                         }
                     }
@@ -94,7 +87,7 @@ pipeline {
                 stage('Unit Test') {
                     agent {
                         docker {
-                            image 'my-container'
+                            image 'python:3.12.1-slim'
                             reuseNode true
                         }
                     }
@@ -128,7 +121,7 @@ pipeline {
             agent {
                 // docker image
                 docker {
-                    image 'my-container'
+                    image 'python:3.12.1-slim'
                     args '-u root'
                     reuseNode true
                 }
@@ -144,17 +137,38 @@ pipeline {
                             exit 1
                         fi
                     '''
+                    // Remove cache and installing curl, nodejs, and npm
+                    sh '''
+                        # Update packages and install dependencies without cache
+                        apt-get clean
+                        rm -rf /var/lib/apt/lists/*
+                        apt-get update --fix-missing
+
+                        # Install curl if it's not installed
+                        apt-get install -y --no-install-recommends curl
+
+                        # Install Node.js 18.x from NodeSource
+                        curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+                        apt-get install -y nodejs
+                        node -v
+                        npm -v
+                    '''
                     // Deploy the existing 'build' directory to Netlify
                     sh '''
+                        npm install netlify-cli node-jq
+                        node_modules/.bin/netlify --version
+                        echo "Deploying to production. Site ID: $NETLIFY_SITE_ID"
+                        node_modules/.bin/netlify status
+
                         echo "Deploying to Netlify using the existing 'build' folder..."
-                        netlify deploy --dir=build --site=$NETLIFY_SITE_ID --auth=$NETLIFY_AUTH_TOKEN --json > deploy-output.json
-                        DEPLOYED_SITE_URL=$(node-jq -r '.deploy_url' deploy-output.json)
+                        node_modules/.bin/netlify deploy --dir=build --site=$NETLIFY_SITE_ID --auth=$NETLIFY_AUTH_TOKEN --json > deploy-output.json
+                        DEPLOYED_SITE_URL=$(node_modules/.bin/node-jq -r '.deploy_url' deploy-output.json)
                     '''
                     // Running E2E tests on the staging site
                     sh '''
                         echo "Running test on staging site"
+                        . venv/bin/activate
                         if [ -f "e2e_test/test_e2e_staging.py" ]; then
-                            . venv/bin/activate
                             export SITE_URL=$DEPLOYED_SITE_URL
                             mkdir -p e2e-staging-reports
                             PYTHONPATH=. python e2e_test/test_e2e_staging.py
@@ -179,23 +193,51 @@ pipeline {
             // Docker image
             agent {
                 docker {
-                    image 'my-container'
+                    image 'python:3.12.1-slim'
                     args '-u root'
                     reuseNode true
                 }
             }
             steps {
                 dir('app') {
+                    // Check if 'build' directory already exists
+                    sh '''
+                        if [ ! -d "build" ]; then
+                            echo "No build directory found! You need to run flask freeze or provide the build directory."
+                            exit 1
+                        fi
+                    '''
+                    // Remove cache and install nodejs and npm
+                    sh '''
+                        # Update packages and install dependencies without cache
+                        apt-get clean
+                        rm -rf /var/lib/apt/lists/*
+                        apt-get update --fix-missing
+
+                        # Install curl if it's not installed
+                        apt-get install -y --no-install-recommends curl
+
+                        # Install Node.js 18.x from NodeSource
+                        curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+                        apt-get install -y nodejs
+                        node -v
+                        npm -v
+                    '''
                     // Deploy the existing 'build' directory to Netlify
                     sh '''
+                        npm install netlify-cli
+                        node_modules/.bin/netlify --version
+                        echo "Deploying to production. Site ID: $NETLIFY_SITE_ID"
+                        node_modules/.bin/netlify status
+
                         echo "Deploying to Netlify using the existing 'build' folder..."
-                        netlify deploy --prod --dir=build --site=$NETLIFY_SITE_ID --auth=$NETLIFY_AUTH_TOKEN
+                        node_modules/.bin/netlify deploy --prod --dir=build --site=$NETLIFY_SITE_ID --auth=$NETLIFY_AUTH_TOKEN
                     '''
                     // E2E testing for production site 
                     sh '''
                         echo "Running test on deployed site"
+                        . venv/bin/activate
                         if [ -f "e2e_test/test_e2e_live.py" ]; then
-                            . venv/bin/activate
                             export SITE_URL=$DEPLOYED_SITE_URL
                             mkdir -p e2e-live-reports
                             PYTHONPATH=. python e2e_test/test_e2e_live.py
