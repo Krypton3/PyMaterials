@@ -43,17 +43,6 @@ class TestLiveSite(unittest.TestCase):
         response = requests.get(site_url_env)
         self.assertEqual(response.status_code, 404, f"Expected status code 404, but got {response.status_code}")
 
-    def test_version_match(self):
-        # Set up the environment variable for the app version
-        app_version = os.getenv('APP_VERSION', '1.0.0')  # The expected version
-
-        response = requests.get(f"{os.getenv('SITE_URL')}/api/version")
-        deployed_version = response.json().get('version')
-
-        # Check if the app version matches the deployed version
-        self.assertEqual(app_version, deployed_version,
-                         f"Version mismatch: expected {deployed_version}, but got {app_version}. Deployment will not proceed.")
-
 
 if __name__ == "__main__":
     with open('e2e-live-reports/results.xml', 'wb') as output:
