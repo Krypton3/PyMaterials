@@ -4,6 +4,7 @@ pipeline {
     environment {
         NETLIFY_SITE_ID = 'ca934c0a-d8db-4262-8c52-1e7cde25bde2'
         NETLIFY_AUTH_TOKEN = credentials('netlify-token')
+        APP_VERSION = "1.1.$BUILD_ID"
     }
 
     stages {
@@ -11,6 +12,7 @@ pipeline {
             agent {
                 docker {
                     image 'python:3.12.1-slim'
+                    args '-u root'
                     reuseNode true
                 }
             }
@@ -46,6 +48,7 @@ pipeline {
                         # Install requirements
                         pip install --no-cache-dir -r requirements.txt
                         flask --version
+                        python app.py freeze
                     '''
                 }
             }
@@ -180,13 +183,6 @@ pipeline {
                 always {
                     // Publish test results for staging e2e
                     junit 'app/e2e-staging-reports/*.xml'
-                }
-            }
-        }
-        stage('Approve') {
-            steps {
-                timeout(1) {
-                    input message: 'Ready to deploy?', ok: 'Yes, I am sure!'
                 }
             }
         }
