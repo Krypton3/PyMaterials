@@ -1,0 +1,13 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Docker Build') {
+            steps {
+                sh '''
+                    docker build --no-cache -t my-container DataExtraction/Jenkins_Docker/.
+                '''
+            }
+        }
+    }
+}
