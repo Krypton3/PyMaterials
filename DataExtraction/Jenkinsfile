@@ -7,8 +7,15 @@ pipeline {
     }
 
     stages {
-        stage('Clone Repository') {
+        stage('Build') {
+            agent {
+                docker {
+                    image 'python:3.12.1-slim'
+                    reuseNode true
+                }
+            }
             steps {
+                // Fetching repository to app directory
                 checkout scm
                 sh '''
                     echo "Setting permissions for workspace"
@@ -23,17 +30,7 @@ pipeline {
                         exit 1
                     fi
                 '''
-            }
-        }
-
-        stage('Build') {
-            agent {
-                docker {
-                    image 'python:3.12.1-slim'
-                    reuseNode true
-                }
-            }
-            steps {
+                // building the environment in the app directory
                 dir('app') {
                     sh '''
                         if [ ! -d "venv" ]; then
@@ -105,10 +102,19 @@ pipeline {
                             '''
                         }
                     }
+                    post {
+                        always {
+                            // Publish JUnit test results
+                            junit 'app/test-reports/*.xml'
+                        }
+                    }
                 }
             }
         }
         stage('Staging Deployment') {
+            environment {
+                DEPLOYED_SITE_URL = 'STAGING_URL_TO_BE_SET'
+            }
             agent {
                 // docker image
                 docker {
@@ -184,7 +190,11 @@ pipeline {
                 }
             }
         }
-        stage('Deploy Prod') {
+        stage('Production Deployment') {
+            environment {
+                DEPLOYED_SITE_URL = 'https://py-materials.netlify.app'
+            }
+            // Docker image
             agent {
                 docker {
                     image 'python:3.12.1-slim'
@@ -201,11 +211,9 @@ pipeline {
                             exit 1
                         fi
                     '''
-                    
-                    // Deploy the existing 'build' directory to Netlify
+                    // Remove cache and install nodejs and npm
                     sh '''
                         # Update packages and install dependencies without cache
-                        # Clean the cache and update package lists
                         apt-get clean
                         rm -rf /var/lib/apt/lists/*
                         apt-get update --fix-missing
@@ -219,6 +227,7 @@ pipeline {
                         node -v
                         npm -v
                     '''
+                    // Deploy the existing 'build' directory to Netlify
                     sh '''
                         npm install netlify-cli
                         node_modules/.bin/netlify --version
@@ -228,21 +237,7 @@ pipeline {
                         echo "Deploying to Netlify using the existing 'build' folder..."
                         node_modules/.bin/netlify deploy --prod --dir=build --site=$NETLIFY_SITE_ID --auth=$NETLIFY_AUTH_TOKEN
                     '''
-                }
-            }
-        }
-        stage('Production E2E Test') {
-            environment {
-                DEPLOYED_SITE_URL = 'https://py-materials.netlify.app'
-            }
-            agent {
-                docker {
-                    image 'python:3.12.1-slim'
-                    reuseNode true
-                }
-            }
-            steps {
-                dir('app') {
+                    // E2E testing for production site 
                     sh '''
                         echo "Running test on deployed site"
                         . venv/bin/activate
@@ -263,13 +258,6 @@ pipeline {
                     junit 'app/e2e-live-reports/*.xml'
                 }
             }
-        }
-    }
-
-    post {
-        always {
-            // Publish JUnit test results
-            junit 'app/test-reports/*.xml'
         }
     }
 }
