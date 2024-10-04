@@ -8,6 +8,26 @@ pipeline {
     }
 
     stages {
+        stage('AWS Build') {
+            environment {
+                AWS_S3_BUCKET = 'learn-jenkins-24'
+            }
+            agent {
+                docker {
+                    image 'amazon/aws-cli'
+                    args "--entrypoint=''"
+                }
+            }
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'my_aws', passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) {
+                    sh '''
+                        aws --version
+                        echo "Hello S3!" > index.html
+                        aws s3 cp index.html s3://$AWS_S3_BUCKET/index.html
+                    '''
+                }
+            }
+        }
         stage('Application Build') {
             agent {
                 docker {
@@ -136,6 +156,11 @@ pipeline {
                             echo "No build directory found! You need to run flask freeze or provide the build directory."
                             exit 1
                         fi
+                    '''
+                    // Link the Netlify site
+                    sh '''
+                        echo "Linking Netlify site..."
+                        netlify link --id ca934c0a-d8db-4262-8c52-1e7cde25bde2
                     '''
                     // Deploy the existing 'build' directory to Netlify
                     sh '''
