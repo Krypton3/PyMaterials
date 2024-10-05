@@ -8,26 +8,6 @@ pipeline {
     }
 
     stages {
-        stage('AWS Build') {
-            environment {
-                AWS_S3_BUCKET = 'learn-jenkins-24'
-            }
-            agent {
-                docker {
-                    image 'amazon/aws-cli'
-                    args "--entrypoint=''"
-                }
-            }
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'my_aws', passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) {
-                    sh '''
-                        aws --version
-                        echo "Hello S3!" > index.html
-                        aws s3 cp index.html s3://$AWS_S3_BUCKET/index.html
-                    '''
-                }
-            }
-        }
         stage('Application Build') {
             agent {
                 docker {
@@ -70,6 +50,28 @@ pipeline {
                         flask --version
                         python app.py freeze
                     '''
+                }
+            }
+        }
+        stage('AWS S3 Deployment') {
+            environment {
+                AWS_S3_BUCKET = 'learn-jenkins-24'
+            }
+            agent {
+                docker {
+                    image 'amazon/aws-cli'
+                    args "--entrypoint=''"
+                    reuseNode true
+                }
+            }
+            steps {
+                dir('app') {
+                    withCredentials([usernamePassword(credentialsId: 'my_aws', passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) {
+                        sh '''
+                            aws --version
+                            aws s3 sync build s3://$AWS_S3_BUCKET
+                        '''
+                    }
                 }
             }
         }
