@@ -4,6 +4,9 @@ pipeline {
     environment {
         APP_VERSION = "1.1.$BUILD_ID"
         AWS_DEFAULT_REGION = 'ca-central-1'
+        AWS_ECS_CLUSTER = 'LearnJenkins-Prod'
+        AWS_CLUSTER_SERVICE = 'LearnJenkins-Service-Prod'
+        AWS_SERVICE_TASK = 'LearnJenkins-TaskDefinition-Prod'
     }
 
     stages {
@@ -56,7 +59,7 @@ pipeline {
             agent {
                 docker {
                     image 'amazon/aws-cli'
-                    args "--entrypoint=''"
+                    args "-u root --entrypoint=''"
                     reuseNode true
                 }
             }
@@ -65,7 +68,11 @@ pipeline {
                     withCredentials([usernamePassword(credentialsId: 'my_aws', passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) {
                         sh '''
                             aws --version
-                            aws ecs register-task-definition --cli-input-json file://aws/task-definition-prod.json
+                            yum install jq -y
+                            REVISION_ID=$(aws ecs register-task-definition --cli-input-json file://aws/task-definition-prod.json | jq '.taskDefinition.revision')
+                            echo $REVISION_ID
+                            aws ecs update-service --cluster $AWS_ECS_CLUSTER --service $AWS_CLUSTER_SERVICE --task-definition $AWS_SERVICE_TASK:$REVISION_ID
+                            aws ecs wait services-stable --cluster $AWS_ECS_CLUSTER --service $AWS_CLUSTER_SERVICE
                         '''
                     }
                 }
