@@ -3,6 +3,7 @@ pipeline {
 
     environment {
         APP_VERSION = "1.1.$BUILD_ID"
+        APP_NAME = 'awsjenkinsapp'
         AWS_DEFAULT_REGION = 'ca-central-1'
         AWS_ECS_CLUSTER = 'LearnJenkins-Prod'
         AWS_CLUSTER_SERVICE = 'LearnJenkins-Service-Prod'
@@ -13,7 +14,7 @@ pipeline {
         stage('Application Build') {
             agent {
                 docker {
-                    image 'my-container'
+                    image 'app-container'
                     args '-u root'
                     reuseNode true
                 }
@@ -58,7 +59,7 @@ pipeline {
         stage('Docker Image Build') {
             agent {
                 docker {
-                    image 'amazon/aws-cli'
+                    image 'aws-container'
                     args "-u root -v /var/run/docker.sock:/var/run/docker.sock --entrypoint=''"
                     reuseNode true
                 }
@@ -66,8 +67,7 @@ pipeline {
             steps {
                 dir('app') {
                     sh '''
-                        amazon-linux-extras install docker
-                        docker build --no-cache -t jenkins-container .
+                        docker build --no-cache -t $APP_NAME:$APP_VERSION .
                     '''
                 }
             }
@@ -75,7 +75,7 @@ pipeline {
         stage('AWS Deployment') {
             agent {
                 docker {
-                    image 'amazon/aws-cli'
+                    image 'aws-container'
                     args "-u root --entrypoint=''"
                     reuseNode true
                 }
@@ -85,7 +85,6 @@ pipeline {
                     withCredentials([usernamePassword(credentialsId: 'my_aws', passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) {
                         sh '''
                             aws --version
-                            yum install jq -y
                             REVISION_ID=$(aws ecs register-task-definition --cli-input-json file://aws/task-definition-prod.json | jq '.taskDefinition.revision')
                             echo $REVISION_ID
                             aws ecs update-service --cluster $AWS_ECS_CLUSTER --service $AWS_CLUSTER_SERVICE --task-definition $AWS_SERVICE_TASK:$REVISION_ID

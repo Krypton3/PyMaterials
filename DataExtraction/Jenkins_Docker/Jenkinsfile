@@ -2,10 +2,11 @@ pipeline {
     agent any
 
     stages {
-        stage('Docker Build') {
+        stage('Build Docker Images') {
             steps {
                 sh '''
-                    docker build --no-cache -t my-container DataExtraction/Jenkins_Docker/.
+                    docker build --no-cache -t app-container DataExtraction/Jenkins_Docker/app/.
+                    docker build --no-cache -t aws-container DataExtraction/Jenkins_Docker/aws/.
                 '''
             }
         }
