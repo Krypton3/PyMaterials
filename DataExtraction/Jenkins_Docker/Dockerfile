@@ -12,5 +12,5 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/* && apt-get update --fix-missing
     # Clean up to reduce image size
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Optional: add node-jq if needed
+# add node-jq if needed
 RUN npm install -g node-jq

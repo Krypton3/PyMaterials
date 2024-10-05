@@ -55,15 +55,6 @@ pipeline {
                 }
             }
         }
-        stage('Docker Image Build') {
-            steps {
-                dir('app') {
-                    sh '''
-                        docker build --no-cache -t jenkins-container .
-                    '''
-                }
-            }
-        }
         stage('AWS Deployment') {
             agent {
                 docker {
