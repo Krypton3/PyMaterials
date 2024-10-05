@@ -3,11 +3,12 @@ pipeline {
 
     environment {
         APP_VERSION = "1.1.$BUILD_ID"
-        APP_NAME = 'awsjenkinsapp'
+        APP_NAME = 'createawsjenkinsapp'
         AWS_DEFAULT_REGION = 'ca-central-1'
         AWS_ECS_CLUSTER = 'LearnJenkins-Prod'
         AWS_CLUSTER_SERVICE = 'LearnJenkins-Service-Prod'
         AWS_SERVICE_TASK = 'LearnJenkins-TaskDefinition-Prod'
+        AWS_DOCKER_REGISTRY = '859458398387.dkr.ecr.ca-central-1.amazonaws.com'
     }
 
     stages {
@@ -66,9 +67,13 @@ pipeline {
             }
             steps {
                 dir('app') {
-                    sh '''
-                        docker build --no-cache -t $APP_NAME:$APP_VERSION .
-                    '''
+                    withCredentials([usernamePassword(credentialsId: 'my_aws', passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) {
+                        sh '''
+                            docker build --no-cache -t $AWS_DOCKER_REGISTRY/$APP_NAME:$APP_VERSION .
+                            aws ecr get-login-password | docker login --username AWS --password-stdin $AWS_DOCKER_REGISTRY
+                            docker push $AWS_DOCKER_REGISTRY/$APP_NAME:$APP_VERSION
+                        '''
+                    }
                 }
             }
         }
@@ -85,6 +90,7 @@ pipeline {
                     withCredentials([usernamePassword(credentialsId: 'my_aws', passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) {
                         sh '''
                             aws --version
+                            sed -i "s/#MY_APP_VERSION#/$APP_VERSION/g" aws/task-definition-prod.json
                             REVISION_ID=$(aws ecs register-task-definition --cli-input-json file://aws/task-definition-prod.json | jq '.taskDefinition.revision')
                             echo $REVISION_ID
                             aws ecs update-service --cluster $AWS_ECS_CLUSTER --service $AWS_CLUSTER_SERVICE --task-definition $AWS_SERVICE_TASK:$REVISION_ID
