@@ -1,0 +1,237 @@
+pipeline {
+    agent any
+
+    environment {
+        NETLIFY_SITE_ID = 'ca934c0a-d8db-4262-8c52-1e7cde25bde2'
+        NETLIFY_AUTH_TOKEN = credentials('netlify-token')
+        APP_VERSION = "1.1.$BUILD_ID"
+    }
+
+    stages {
+        stage('Application Build') {
+            agent {
+                docker {
+                    image 'my-container'
+                    args '-u root'
+                    reuseNode true
+                }
+            }
+            steps {
+                // Fetching repository to app directory
+                checkout scm
+                sh '''
+                    echo "Setting permissions for workspace"
+                '''
+                sh '''
+                    if [ -d "DataExtraction" ]; then
+                        echo "DataExtraction folder exists. Copying content..."
+                        mkdir -p "$WORKSPACE/app"
+                        cp -r DataExtraction/* "$WORKSPACE/app"
+                    else
+                        echo "DataExtraction folder doesn't exist!"
+                        exit 1
+                    fi
+                '''
+                // building the environment in the app directory
+                dir('app') {
+                    sh '''
+                        if [ ! -d "venv" ]; then
+                            python -m venv venv
+                        fi
+                        . venv/bin/activate
+
+                        if [ ! -f "requirements.txt" ]; then
+                            echo "requirements.txt not found!"
+                            exit 1
+                        fi
+                        
+                        # Install requirements
+                        pip install --no-cache-dir -r requirements.txt
+                        flask --version
+                        python app.py freeze
+                    '''
+                }
+            }
+        }
+        stage('AWS S3 Deployment') {
+            environment {
+                AWS_S3_BUCKET = 'learn-jenkins-24'
+            }
+            agent {
+                docker {
+                    image 'amazon/aws-cli'
+                    args "--entrypoint=''"
+                    reuseNode true
+                }
+            }
+            steps {
+                dir('app') {
+                    withCredentials([usernamePassword(credentialsId: 'my_aws', passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) {
+                        sh '''
+                            aws --version
+                            aws s3 sync build s3://$AWS_S3_BUCKET
+                        '''
+                    }
+                }
+            }
+        }
+        stage('Test') {
+            parallel {
+                stage('E2E Test') {
+                    agent {
+                        docker {
+                            image 'my-container'
+                            args '-u root'
+                            reuseNode true
+                        }
+                    }
+                    steps {
+                        dir('app') {
+                            sh '''
+                                if [ -f "e2e_test/test_e2e_extract.py" ]; then
+                                    . venv/bin/activate
+                                    mkdir -p e2e-test-reports
+                                    PYTHONPATH=. python e2e_test/test_e2e_extract.py
+                                else
+                                    echo "e2e test file not found!"
+                                    exit 1
+                                fi
+                            '''
+                        }
+                    }
+                    post {
+                        always {
+                            // Publish test results for prod e2e
+                            junit 'app/e2e-test-reports/*.xml'
+                        }
+                    }
+                }
+                stage('Unit Test') {
+                    agent {
+                        docker {
+                            image 'my-container'
+                            reuseNode true
+                        }
+                    }
+                    steps {
+                        dir('app') {
+                            sh '''
+                                if [ -f "tests/test_extract.py" ]; then
+                                    . venv/bin/activate
+                                    mkdir -p test-reports
+                                    PYTHONPATH=. python tests/test_extract.py
+                                else
+                                    echo "unit test file not found!"
+                                    exit 1
+                                fi
+                            '''
+                        }
+                    }
+                    post {
+                        always {
+                            // Publish JUnit test results
+                            junit 'app/test-reports/*.xml'
+                        }
+                    }
+                }
+            }
+        }
+        stage('Staging Deployment') {
+            environment {
+                DEPLOYED_SITE_URL = 'STAGING_URL_TO_BE_SET'
+            }
+            agent {
+                // docker image
+                docker {
+                    image 'my-container'
+                    args '-u root'
+                    reuseNode true
+                }
+            }
+            // build and testing steps
+            steps {
+                // inside the app directory
+                dir('app') {
+                    // Check if 'build' directory already exists
+                    sh '''
+                        if [ ! -d "build" ]; then
+                            echo "No build directory found! You need to run flask freeze or provide the build directory."
+                            exit 1
+                        fi
+                    '''
+                    // Link the Netlify site
+                    sh '''
+                        echo "Linking Netlify site..."
+                        netlify link --id ca934c0a-d8db-4262-8c52-1e7cde25bde2
+                    '''
+                    // Deploy the existing 'build' directory to Netlify
+                    sh '''
+                        echo "Deploying to Netlify using the existing 'build' folder..."
+                        netlify deploy --dir=build --site=$NETLIFY_SITE_ID --auth=$NETLIFY_AUTH_TOKEN --json > deploy-output.json
+                        DEPLOYED_SITE_URL=$(node-jq -r '.deploy_url' deploy-output.json)
+                    '''
+                    // Running E2E tests on the staging site
+                    sh '''
+                        echo "Running test on staging site"
+                        if [ -f "e2e_test/test_e2e_staging.py" ]; then
+                            . venv/bin/activate
+                            export SITE_URL=$DEPLOYED_SITE_URL
+                            mkdir -p e2e-staging-reports
+                            PYTHONPATH=. python e2e_test/test_e2e_staging.py
+                        else
+                            echo "e2e staging test file not found!"
+                            exit 1
+                        fi
+                    '''
+                }
+            }
+            post {
+                always {
+                    // Publish test results for staging e2e
+                    junit 'app/e2e-staging-reports/*.xml'
+                }
+            }
+        }
+        stage('Production Deployment') {
+            environment {
+                DEPLOYED_SITE_URL = 'https://py-materials.netlify.app'
+            }
+            // Docker image
+            agent {
+                docker {
+                    image 'my-container'
+                    args '-u root'
+                    reuseNode true
+                }
+            }
+            steps {
+                dir('app') {
+                    // Deploy the existing 'build' directory to Netlify
+                    sh '''
+                        echo "Deploying to Netlify using the existing 'build' folder..."
+                        netlify deploy --prod --dir=build --site=$NETLIFY_SITE_ID --auth=$NETLIFY_AUTH_TOKEN
+                    '''
+                    // E2E testing for production site 
+                    sh '''
+                        echo "Running test on deployed site"
+                        if [ -f "e2e_test/test_e2e_live.py" ]; then
+                            . venv/bin/activate
+                            export SITE_URL=$DEPLOYED_SITE_URL
+                            mkdir -p e2e-live-reports
+                            PYTHONPATH=. python e2e_test/test_e2e_live.py
+                        else
+                            echo "e2e live test file not found!"
+                            exit 1
+                        fi
+                    '''
+                }
+            }
+            post {
+                always {
+                    // Publish test results for prod e2e
+                    junit 'app/e2e-live-reports/*.xml'
+                }
+            }
+        }
+    }
+}
